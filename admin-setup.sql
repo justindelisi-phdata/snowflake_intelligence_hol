@@ -1,3 +1,10 @@
+-- Run these to test this script from a fresh slate
+-- USE ROLE accountadmin;
+-- drop database if exists sf_ai_demo;
+-- drop database if exists snowflake_intelligence;
+-- drop warehouse if exists Snow_Intelligence_demo_wh;
+-- drop role if exists SF_Intelligence_Demo;
+
 -- ========================================================================
 -- STEP 1: Create Snowflake Objects
 -- ========================================================================
@@ -92,10 +99,13 @@ ALTER GIT REPOSITORY SF_AI_DEMO_REPO FETCH;
 -- ========================================================================
 -- STEP 3: Load data into internal stage
 -- ========================================================================
+COPY FILES
+INTO @INTERNAL_DATA_STAGE/structured_data/
+FROM @SF_AI_DEMO_REPO/branches/"feat/semantic-modeling-lab"/structured_data/;
 
 COPY FILES
 INTO @INTERNAL_DATA_STAGE/unstructured_docs/
-FROM @SF_AI_DEMO_REPO/branches/main/source_pdfs/;
+FROM @SF_AI_DEMO_REPO/branches/"feat/semantic-modeling-lab"/source_pdfs/;
 
 -- Verify files were copied
 LS @INTERNAL_DATA_STAGE;
@@ -226,87 +236,87 @@ CREATE OR REPLACE TABLE sales_fact (
 );
 
 -- Marketing Campaign Fact Table
-CREATE OR REPLACE TABLE marketing_campaign_fact (
-    campaign_fact_id INT PRIMARY KEY,
-    date DATE NOT NULL,
-    campaign_key INT NOT NULL,
-    product_key INT NOT NULL,
-    channel_key INT NOT NULL,
-    region_key INT NOT NULL,
-    spend DECIMAL(10,2) NOT NULL,
-    leads_generated INT NOT NULL,
-    impressions INT NOT NULL
-);
+-- CREATE OR REPLACE TABLE marketing_campaign_fact (
+--     campaign_fact_id INT PRIMARY KEY,
+--     date DATE NOT NULL,
+--     campaign_key INT NOT NULL,
+--     product_key INT NOT NULL,
+--     channel_key INT NOT NULL,
+--     region_key INT NOT NULL,
+--     spend DECIMAL(10,2) NOT NULL,
+--     leads_generated INT NOT NULL,
+--     impressions INT NOT NULL
+-- );
 
 -- Load Product Dimension
 COPY INTO product_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/product_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/product_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Product Category Dimension
 COPY INTO product_category_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/product_category_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/product_category_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Vendor Dimension
 COPY INTO vendor_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/vendor_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/vendor_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Customer Dimension
 COPY INTO customer_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/customer_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/customer_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Account Dimension
 COPY INTO account_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/account_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/account_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Department Dimension
 COPY INTO department_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/department_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/department_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Sales Rep Dimension
 COPY INTO sales_rep_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/sales_rep_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/sales_rep_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Campaign Dimension
 COPY INTO campaign_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/campaign_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/campaign_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Region Dimension
 COPY INTO region_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/region_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/region_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Channel Dimension
 COPY INTO channel_dim
-FROM @INTERNAL_DATA_STAGE/demo_data/channel_dim.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/channel_dim.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Finance Transactions
 COPY INTO finance_transactions
-FROM @INTERNAL_DATA_STAGE/demo_data/finance_transactions.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/finance_transactions.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
 -- Load Sales Fact
 COPY INTO sales_fact
-FROM @INTERNAL_DATA_STAGE/demo_data/sales_fact.csv
+FROM @INTERNAL_DATA_STAGE/structured_data/sales_fact.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
