@@ -121,7 +121,6 @@ USE ROLE accountadmin;
 -- Grant necessary privileges on database and schema
 GRANT ALL PRIVILEGES ON DATABASE SF_AI_DEMO TO ROLE ACCOUNTADMIN;
 GRANT ALL PRIVILEGES ON SCHEMA SF_AI_DEMO.DEMO_SCHEMA TO ROLE ACCOUNTADMIN;
--- GRANT USAGE ON NETWORK RULE snowflake_intelligence_webaccessrule TO ROLE accountadmin;
 
 USE SCHEMA SF_AI_DEMO.DEMO_SCHEMA;
 
@@ -132,6 +131,7 @@ GRANT CREATE AGENT ON SCHEMA snowflake_intelligence.agents TO ROLE SF_Intelligen
 
 -- STEP 5: Load data
 USE SF_AI_DEMO.DEMO_SCHEMA;
+USE ROLE SF_Intelligence_Demo;
 
 -- Vendor Dimension
 CREATE OR REPLACE TABLE vendor_dim (
@@ -235,19 +235,6 @@ CREATE OR REPLACE TABLE sales_fact (
     units INT NOT NULL
 );
 
--- Marketing Campaign Fact Table
--- CREATE OR REPLACE TABLE marketing_campaign_fact (
---     campaign_fact_id INT PRIMARY KEY,
---     date DATE NOT NULL,
---     campaign_key INT NOT NULL,
---     product_key INT NOT NULL,
---     channel_key INT NOT NULL,
---     region_key INT NOT NULL,
---     spend DECIMAL(10,2) NOT NULL,
---     leads_generated INT NOT NULL,
---     impressions INT NOT NULL
--- );
-
 -- Load Product Dimension
 COPY INTO product_dim
 FROM @INTERNAL_DATA_STAGE/structured_data/product_dim.csv
@@ -320,3 +307,15 @@ FROM @INTERNAL_DATA_STAGE/structured_data/sales_fact.csv
 FILE_FORMAT = CSV_FORMAT
 ON_ERROR = 'CONTINUE';
 
+CREATE OR REPLACE TABLE parsed_content AS 
+SELECT 
+    relative_path, 
+    BUILD_STAGE_FILE_URL('@SF_AI_DEMO.DEMO_SCHEMA.INTERNAL_DATA_STAGE', relative_path) as file_url,
+    TO_FILE(BUILD_STAGE_FILE_URL('@SF_AI_DEMO.DEMO_SCHEMA.INTERNAL_DATA_STAGE', relative_path)) file_object,
+    SNOWFLAKE.CORTEX.PARSE_DOCUMENT(
+        @SF_AI_DEMO.DEMO_SCHEMA.INTERNAL_DATA_STAGE,
+        relative_path,
+        {'mode':'LAYOUT'}
+    ):content::string as Content
+FROM directory(@SF_AI_DEMO.DEMO_SCHEMA.INTERNAL_DATA_STAGE) 
+WHERE relative_path ILIKE 'unstructured_docs/%.pdf';
