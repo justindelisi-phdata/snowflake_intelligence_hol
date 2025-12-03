@@ -9,6 +9,7 @@
 -- STEP 1: Create Snowflake Objects
 -- ========================================================================
 USE ROLE accountadmin;
+ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'AWS_US';
 
 -- Enable Snowflake Intelligence by creating the Config DB & Schema
 CREATE DATABASE IF NOT EXISTS snowflake_intelligence;
