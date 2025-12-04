@@ -1,31 +1,36 @@
 -- Run these to test this script from a fresh slate
 -- USE ROLE accountadmin;
+-- USE DEFAULT_DATABASE.PUBLIC;
+-- USE WAREHOUSE DEFAULT_WH;
 -- drop database if exists sf_ai_demo;
 -- drop database if exists snowflake_intelligence;
 -- drop warehouse if exists Snow_Intelligence_demo_wh;
--- drop role if exists SF_Intelligence_Demo;
 
 -- ========================================================================
--- STEP 1: Create Snowflake Objects
+-- STEP 1: Accountadmin setup tasks
 -- ========================================================================
 USE ROLE accountadmin;
+
 ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'AWS_US';
 
+CREATE OR REPLACE API INTEGRATION git_api_integration
+    API_PROVIDER = git_https_api
+    API_ALLOWED_PREFIXES = ('https://github.com/justindelisi-phdata')
+    ENABLED = TRUE;
+
+GRANT USAGE ON INTEGRATION GIT_API_INTEGRATION TO ROLE ATTENDEE_ROLE;
+    
+-- ========================================================================
+-- STEP 2: Create objects with ATTENDEE_ROLE
+-- ========================================================================
+USE ROLE ATTENDEE_ROLE;
 -- Enable Snowflake Intelligence by creating the Config DB & Schema
 CREATE DATABASE IF NOT EXISTS snowflake_intelligence;
 CREATE SCHEMA IF NOT EXISTS snowflake_intelligence.agents;
 
 -- Allow anyone to see the agents in this schema
-GRANT USAGE ON DATABASE snowflake_intelligence TO ROLE PUBLIC;
-GRANT USAGE ON SCHEMA snowflake_intelligence.agents TO ROLE PUBLIC;
-
-
-create or replace role SF_Intelligence_Demo;
-SET current_user_name = CURRENT_USER();
-
--- Step 2: Use the variable to grant the role
-GRANT ROLE SF_Intelligence_Demo TO USER IDENTIFIER($current_user_name);
-GRANT CREATE DATABASE ON ACCOUNT TO ROLE SF_Intelligence_Demo;
+GRANT USAGE ON DATABASE snowflake_intelligence TO ROLE ATTENDEE_ROLE;
+GRANT USAGE ON SCHEMA snowflake_intelligence.agents TO ROLE ATTENDEE_ROLE;
 
 -- Create a dedicated warehouse for the demo with auto-suspend/resume
 CREATE OR REPLACE WAREHOUSE Snow_Intelligence_demo_wh 
@@ -35,15 +40,7 @@ CREATE OR REPLACE WAREHOUSE Snow_Intelligence_demo_wh
 
 
 -- Grant usage on warehouse to admin role
-GRANT USAGE ON WAREHOUSE SNOW_INTELLIGENCE_DEMO_WH TO ROLE SF_Intelligence_Demo;
-
--- Alter current user's default role and warehouse to the ones used here
-ALTER USER IDENTIFIER($current_user_name) SET DEFAULT_ROLE = SF_Intelligence_Demo;
-ALTER USER IDENTIFIER($current_user_name) SET DEFAULT_WAREHOUSE = Snow_Intelligence_demo_wh;
-
-
--- Switch to SF_Intelligence_Demo role to create demo objects
-use role SF_Intelligence_Demo;
+GRANT USAGE ON WAREHOUSE SNOW_INTELLIGENCE_DEMO_WH TO ROLE ATTENDEE_ROLE;
 
 -- Create database and schema
 CREATE OR REPLACE DATABASE SF_AI_DEMO;
@@ -67,22 +64,7 @@ CREATE OR REPLACE FILE FORMAT CSV_FORMAT
     TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS'
     NULL_IF = ('NULL', 'null', '', 'N/A', 'n/a');
 
-    
--- ========================================================================
--- STEP 2: Create Git API integration and clone repo
--- ========================================================================
-use role accountadmin;
--- Create API Integration for GitHub (public repository access)
-CREATE OR REPLACE API INTEGRATION git_api_integration
-    API_PROVIDER = git_https_api
-    API_ALLOWED_PREFIXES = ('https://github.com/justindelisi-phdata')
-    ENABLED = TRUE;
 
-
-GRANT USAGE ON INTEGRATION GIT_API_INTEGRATION TO ROLE SF_Intelligence_Demo;
-
-
-use role SF_Intelligence_Demo;
 -- Create Git repository integration for the public demo repository
 CREATE OR REPLACE GIT REPOSITORY SF_AI_DEMO_REPO
     API_INTEGRATION = git_api_integration
@@ -98,7 +80,7 @@ CREATE OR REPLACE STAGE INTERNAL_DATA_STAGE
 ALTER GIT REPOSITORY SF_AI_DEMO_REPO FETCH;
 
 -- ========================================================================
--- STEP 3: Load data into internal stage
+-- STEP 3: Load data
 -- ========================================================================
 COPY FILES
 INTO @INTERNAL_DATA_STAGE/structured_data/
@@ -113,26 +95,8 @@ LS @INTERNAL_DATA_STAGE;
 ALTER STAGE INTERNAL_DATA_STAGE refresh;
 
 
--- ========================================================================
--- STEP 4: Configure Snowflake Intelligence
--- ========================================================================
--- Switch to accountadmin for integration creation
-USE ROLE accountadmin;
-
--- Grant necessary privileges on database and schema
-GRANT ALL PRIVILEGES ON DATABASE SF_AI_DEMO TO ROLE ACCOUNTADMIN;
-GRANT ALL PRIVILEGES ON SCHEMA SF_AI_DEMO.DEMO_SCHEMA TO ROLE ACCOUNTADMIN;
-
-USE SCHEMA SF_AI_DEMO.DEMO_SCHEMA;
-
-GRANT USAGE ON DATABASE snowflake_intelligence TO ROLE SF_Intelligence_Demo;
-GRANT USAGE ON SCHEMA snowflake_intelligence.agents TO ROLE SF_Intelligence_Demo;
-GRANT CREATE AGENT ON SCHEMA snowflake_intelligence.agents TO ROLE SF_Intelligence_Demo;
-
-
--- STEP 5: Load data
 USE SF_AI_DEMO.DEMO_SCHEMA;
-USE ROLE SF_Intelligence_Demo;
+USE ROLE ATTENDEE_ROLE;
 
 -- Vendor Dimension
 CREATE OR REPLACE TABLE vendor_dim (
@@ -320,3 +284,22 @@ SELECT
     ):content::string as Content
 FROM directory(@SF_AI_DEMO.DEMO_SCHEMA.INTERNAL_DATA_STAGE) 
 WHERE relative_path ILIKE 'unstructured_docs/%.pdf';
+
+-- Create search service for finance documents
+USE SF_AI_DEMO.DEMO_SCHEMA;
+
+CREATE OR REPLACE CORTEX SEARCH SERVICE Search_finance_docs
+ON content
+ATTRIBUTES relative_path, file_url, title
+WAREHOUSE = SNOW_INTELLIGENCE_DEMO_WH
+TARGET_LAG = '30 day'
+EMBEDDING_MODEL = 'snowflake-arctic-embed-l-v2.0'
+AS (
+    SELECT
+        relative_path,
+        file_url,
+        REGEXP_SUBSTR(relative_path, '[^/]+$') as title,
+        content
+    FROM parsed_content
+    WHERE relative_path ILIKE 'unstructured_docs/%.pdf'
+);
