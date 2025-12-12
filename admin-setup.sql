@@ -84,11 +84,11 @@ ALTER GIT REPOSITORY SF_AI_DEMO_REPO FETCH;
 -- ========================================================================
 COPY FILES
 INTO @INTERNAL_DATA_STAGE/structured_data/
-FROM @SF_AI_DEMO_REPO/branches/"feat/semantic-modeling-lab"/structured_data/;
+FROM @SF_AI_DEMO_REPO/branches/main/structured_data/;
 
 COPY FILES
 INTO @INTERNAL_DATA_STAGE/unstructured_docs/
-FROM @SF_AI_DEMO_REPO/branches/"feat/semantic-modeling-lab"/source_pdfs/;
+FROM @SF_AI_DEMO_REPO/branches/main/source_pdfs/;
 
 -- Verify files were copied
 LS @INTERNAL_DATA_STAGE;
