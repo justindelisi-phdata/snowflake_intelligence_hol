@@ -32,12 +32,11 @@ CREATE SCHEMA IF NOT EXISTS snowflake_intelligence.agents;
 GRANT USAGE ON DATABASE snowflake_intelligence TO ROLE ATTENDEE_ROLE;
 GRANT USAGE ON SCHEMA snowflake_intelligence.agents TO ROLE ATTENDEE_ROLE;
 
--- Create a dedicated warehouse for the demo with auto-suspend/resume
+-- Create a dedicated warehouses for the demo with auto-suspend/resume
 CREATE OR REPLACE WAREHOUSE Snow_Intelligence_demo_wh 
     WITH WAREHOUSE_SIZE = 'XSMALL'
     AUTO_SUSPEND = 300
     AUTO_RESUME = TRUE;
-
 
 -- Grant usage on warehouse to admin role
 GRANT USAGE ON WAREHOUSE SNOW_INTELLIGENCE_DEMO_WH TO ROLE ATTENDEE_ROLE;
@@ -303,3 +302,20 @@ AS (
     FROM parsed_content
     WHERE relative_path ILIKE 'unstructured_docs/%.pdf'
 );
+
+-- Separate Cortex Functions lab into a separate DB 
+CREATE DATABASE IF NOT EXISTS UNSTRUCTURED_HOL;
+CREATE SCHEMA IF NOT EXISTS UNSTRUCTURED_HOL.AISQL;
+USE DATABASE UNSTRUCTURED_HOL;
+USE SCHEMA AISQL;
+
+CREATE OR REPLACE STAGE pdf_dump
+  DIRECTORY = ( ENABLE = TRUE )
+  ENCRYPTION = ( TYPE = 'SNOWFLAKE_SSE' );
+
+COPY FILES
+INTO @pdf_dump
+FROM @SF_AI_DEMO.DEMO_SCHEMA.SF_AI_DEMO_REPO/branches/minneapolis/cortex_function_lab_pdfs/initial_load/;
+
+SELECT * FROM DIRECTORY(@pdf_dump);
+
