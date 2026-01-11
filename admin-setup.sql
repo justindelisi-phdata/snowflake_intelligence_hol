@@ -316,6 +316,6 @@ CREATE OR REPLACE STAGE pdf_dump
 COPY FILES
 INTO @pdf_dump
 FROM @SF_AI_DEMO.DEMO_SCHEMA.SF_AI_DEMO_REPO/branches/minneapolis/cortex_function_lab_pdfs/initial_load/;
-
+ALTER STAGE pdf_dump REFRESH;
 SELECT * FROM DIRECTORY(@pdf_dump);
 
